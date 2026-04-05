@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poncelet Tyméo — BTS SIO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    :root {
+      --bg: #080808;
+      --bg2: #0f0f0f;
+      --fg: #f0ede6;
+      --fg-dim: rgba(240,237,230,0.38);
+      --fg-mid: rgba(240,237,230,0.62);
+      --border: rgba(240,237,230,0.08);
+      --border-strong: rgba(240,237,230,0.18);
+      --accent: #00ff85;
+      --accent-dim: rgba(0,255,133,0.08);
+    }
+
+    body {
+      font-family: 'Fira Code', monospace;
+      background: var(--bg);
+      color: var(--fg);
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    #cursor {
+      position: fixed; width: 8px; height: 8px;
+      background: var(--accent); border-radius: 50%;
+      pointer-events: none; z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: width 0.2s, height 0.2s;
+      mix-blend-mode: difference;
+    }
+    #cursor-ring {
+      position: fixed; width: 32px; height: 32px;
+      border: 1px solid rgba(0,255,133,0.45); border-radius: 50%;
+      pointer-events: none; z-index: 9998;
+      transform: translate(-50%, -50%);
+      transition: all 0.15s ease;
+    }
+    body.hovering #cursor { width: 14px; height: 14px; }
+    body.hovering #cursor-ring { width: 48px; height: 48px; border-color: var(--accent); }
+
+    #progress {
+      position: fixed; top: 0; left: 0; height: 1px;
+      background: var(--accent); z-index: 9000;
+      width: 0%; transition: width 0.05s linear;
+    }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      height: 60px; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 48px;
+      border-bottom: 1px solid transparent;
+      transition: background 0.4s, border-color 0.4s;
+    }
+    nav.scrolled {
+      background: rgba(8,8,8,0.94);
+      backdrop-filter: blur(16px);
+      border-bottom-color: var(--border);
+    }
+    .nav-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem; letter-spacing: 5px;
+      color: var(--fg); text-decoration: none;
+    }
+    .nav-logo .dot { color: var(--accent); }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a {
+      font-size: 0.62rem; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--fg-dim); text-decoration: none; transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--accent); }
+
+    .hero {
+      min-height: 100vh; display: flex; align-items: center;
+      padding: 100px 48px 80px; position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 55% 50% at 80% 50%, rgba(0,255,133,0.04) 0%, transparent 70%),
+        repeating-linear-gradient(0deg, transparent, transparent 79px, rgba(240,237,230,0.013) 80px),
+        repeating-linear-gradient(90deg, transparent, transparent 79px, rgba(240,237,230,0.013) 80px);
+      pointer-events: none;
+    }
+    .hero-inner { position: relative; z-index: 1; max-width: 1200px; width: 100%; }
+
+    .hero-prefix {
+      font-size: 0.6rem; letter-spacing: 3px; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 24px;
+      display: flex; align-items: center; gap: 12px;
+      opacity: 0; animation: fadeUp 0.6s 0.2s forwards;
+    }
+    .hero-prefix::before { content: '//'; color: var(--fg-dim); }
+
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(4.5rem, 11vw, 10.5rem);
+      line-height: 0.88; letter-spacing: 0.03em; text-transform: uppercase;
+      opacity: 0; animation: fadeUp 0.7s 0.35s forwards;
+    }
+    .hero h1 .outline { -webkit-text-stroke: 1px rgba(240,237,230,0.28); color: transparent; }
+    .hero h1 .accent-word { color: var(--accent); }
+
+    .hero-sub {
+      margin-top: 32px; max-width: 580px;
+      font-size: 0.75rem; line-height: 2.1; color: var(--fg-mid);
+      opacity: 0; animation: fadeUp 0.7s 0.55s forwards;
+    }
+    .hero-sub .comment { color: var(--fg-dim); font-size: 0.66rem; }
+
+    .hero-cta {
+      margin-top: 48px; display: flex; gap: 14px; flex-wrap: wrap;
+      opacity: 0; animation: fadeUp 0.7s 0.7s forwards;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 28px; font-family: 'Fira Code', monospace;
+      font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase;
+      text-decoration: none; transition: all 0.2s; cursor: none;
+    }
+    .btn-primary { background: var(--accent); color: #000; font-weight: 500; }
+    .btn-primary:hover { background: #fff; }
+    .btn-outline { border: 1px solid var(--border-strong); color: var(--fg); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    .hero-status {
+      position: absolute; right: 48px; bottom: 48px;
+      font-size: 0.56rem; letter-spacing: 2px; color: var(--fg-dim);
+      display: flex; align-items: center; gap: 8px;
+      opacity: 0; animation: fadeUp 0.7s 0.9s forwards;
+    }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.65)} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+
+    section { padding: 120px 48px; }
+    .section-inner { max-width: 1200px; margin: 0 auto; }
+
+    .section-tag {
+      font-size: 0.57rem; letter-spacing: 4px; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-tag::before { content: '/*'; color: var(--fg-dim); }
+    .section-tag::after  { content: '*/'; color: var(--fg-dim); }
+
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(3rem, 6vw, 5.5rem);
+      letter-spacing: 0.03em; line-height: 0.9; margin-bottom: 64px;
+    }
+    .section-title em { font-style: normal; -webkit-text-stroke: 1px rgba(240,237,230,0.22); color: transparent; }
+
+    #competences { border-top: 1px solid var(--border); background: var(--bg2); }
+
+    .skills-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); }
+    .skill-block { background: var(--bg2); padding: 40px; }
+    .skill-block-title {
+      font-size: 0.57rem; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 24px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .skill-block-title::before { content: '>_'; }
+    .skill-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .skill-list li {
+      font-size: 0.68rem; color: var(--fg-mid);
+      display: flex; align-items: baseline; gap: 10px; line-height: 1.6;
+    }
+    .skill-list li::before { content: '—'; color: var(--fg-dim); flex-shrink: 0; }
+    .skill-list li strong { color: var(--fg); font-weight: 500; }
+
+    #projets { border-top: 1px solid var(--border); }
+
+    .projects-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+    .project-card {
+      background: var(--bg); padding: 48px;
+      position: relative; overflow: hidden; transition: background 0.3s; cursor: none;
+    }
+    .project-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--accent-dim); opacity: 0; transition: opacity 0.3s;
+    }
+    .project-card:hover { background: var(--bg2); }
+    .project-card:hover::before { opacity: 1; }
+    .project-card.featured {
+      grid-column: 1 / -1; padding: 64px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+    }
+    .project-num { font-size: 0.54rem; letter-spacing: 3px; color: var(--fg-dim); margin-bottom: 18px; font-weight: 300; }
+    .project-type {
+      display: inline-block; padding: 3px 10px; border: 1px solid var(--border-strong);
+      font-size: 0.5rem; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--fg-dim); margin-bottom: 18px;
+    }
+    .project-card.featured .project-type { border-color: rgba(0,255,133,0.4); color: var(--accent); }
+    .project-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.2rem, 3.5vw, 3.5rem);
+      letter-spacing: 0.04em; line-height: 0.9; margin-bottom: 18px;
+    }
+    .project-card.featured .project-title { font-size: clamp(3.5rem, 6vw, 6rem); }
+    .project-desc { font-size: 0.7rem; line-height: 2; color: var(--fg-mid); margin-bottom: 28px; max-width: 420px; }
+    .project-tech { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 32px; }
+    .tech-tag {
+      padding: 3px 9px; background: rgba(240,237,230,0.04);
+      border: 1px solid var(--border);
+      font-size: 0.48rem; letter-spacing: 1.5px; text-transform: uppercase; color: var(--fg-dim);
+    }
+    .project-link {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--fg); text-decoration: none;
+      border-bottom: 1px solid var(--border-strong); padding-bottom: 4px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .project-card.featured .project-link { color: var(--accent); border-color: var(--accent); }
+    .project-link:hover { color: var(--accent); border-color: var(--accent); }
+    .project-link svg { transition: transform 0.2s; }
+    .project-link:hover svg { transform: translate(3px,-3px); }
+
+    .snoxy-preview {
+      aspect-ratio: 16/10; background: #000;
+      border: 1px solid var(--border-strong);
+      position: relative; overflow: hidden; border-radius: 2px;
+    }
+    .snoxy-preview-bar {
+      height: 26px; background: #111; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 6px; padding: 0 12px;
+    }
+    .snoxy-preview-bar span { width: 8px; height: 8px; border-radius: 50%; }
+    .snoxy-preview-bar span:nth-child(1) { background: #ff5f57; }
+    .snoxy-preview-bar span:nth-child(2) { background: #ffbd2e; }
+    .snoxy-preview-bar span:nth-child(3) { background: #28ca42; }
+    .snoxy-preview-screen {
+      position: absolute; inset: 26px 0 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .snoxy-preview-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 5vw, 4rem); letter-spacing: 0.1em; color: rgba(255,255,255,0.85);
+    }
+    .snoxy-preview-text .dim { color: rgba(255,255,255,0.2); }
+    .snoxy-preview::after {
+      content: 'CLIQUER POUR OUVRIR';
+      position: absolute; inset: 0;
+      background: rgba(0,255,133,0.07);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.56rem; letter-spacing: 4px; font-family: 'Fira Code', monospace;
+      color: var(--accent); opacity: 0; transition: opacity 0.3s;
+    }
+    .project-card.featured:hover .snoxy-preview::after { opacity: 1; }
+
+    .project-placeholder {
+      aspect-ratio: 16/10; background: var(--bg2);
+      border: 1px dashed var(--border-strong);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 8px;
+      color: var(--fg-dim); font-size: 0.58rem; letter-spacing: 2px;
+      text-transform: uppercase; margin-bottom: 28px;
+    }
+
+    #apropos { border-top: 1px solid var(--border); }
+    .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: start; }
+    .about-left h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(3.5rem, 7vw, 6.5rem);
+      letter-spacing: 0.03em; line-height: 0.85; margin-bottom: 32px;
+    }
+    .about-left h2 em { font-style: normal; display: block; -webkit-text-stroke: 1px rgba(240,237,230,0.22); color: transparent; }
+    .about-stat-row { display: grid; grid-template-columns: repeat(2,1fr); gap: 1px; background: var(--border); margin-top: 40px; }
+    .about-stat { background: var(--bg); padding: 22px; }
+    .about-stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; color: var(--accent); line-height: 1; margin-bottom: 5px; }
+    .about-stat-lbl { font-size: 0.5rem; letter-spacing: 2px; text-transform: uppercase; color: var(--fg-dim); }
+
+    .about-right p { font-size: 0.72rem; line-height: 2.2; color: var(--fg-mid); margin-bottom: 28px; }
+    .about-right p strong { color: var(--fg); font-weight: 500; }
+
+    .info-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+    .info-item { display: flex; align-items: baseline; gap: 12px; font-size: 0.68rem; color: var(--fg-mid); }
+    .info-label { font-size: 0.52rem; letter-spacing: 2px; text-transform: uppercase; color: var(--fg-dim); flex-shrink: 0; min-width: 90px; }
+    .info-val { color: var(--fg); }
+
+    .code-block {
+      background: #0a0a0a; border: 1px solid var(--border);
+      padding: 22px 26px; border-left: 2px solid var(--accent);
+      font-size: 0.63rem; line-height: 2;
+    }
+    .code-kw { color: #ff79c6; }
+    .code-fn { color: #50fa7b; }
+    .code-str { color: #f1fa8c; }
+    .code-cm { color: var(--fg-dim); }
+
+    #contact {
+      border-top: 1px solid var(--border);
+      min-height: 60vh; display: flex; align-items: center;
+      position: relative; overflow: hidden;
+    }
+    #contact::before {
+      content: 'CONTACT'; position: absolute; right: -2%;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(8rem, 18vw, 18rem);
+      color: rgba(255,255,255,0.02); letter-spacing: 0.04em;
+      pointer-events: none; user-select: none; line-height: 1;
+      top: 50%; transform: translateY(-50%);
+    }
+    .contact-inner { position: relative; z-index: 1; }
+    .contact-inner h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(3.5rem, 8vw, 7rem);
+      letter-spacing: 0.04em; line-height: 0.88; margin-bottom: 24px;
+    }
+    .contact-inner h2 em { font-style: normal; -webkit-text-stroke: 1px rgba(240,237,230,0.22); color: transparent; }
+    .contact-inner p { font-size: 0.7rem; color: var(--fg-mid); line-height: 2; margin-bottom: 40px; max-width: 420px; }
+    .contact-links { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    footer {
+      border-top: 1px solid var(--border); padding: 28px 48px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 0.9rem; letter-spacing: 5px; }
+    .footer-logo .dot { color: var(--accent); }
+    .footer-copy { font-size: 0.56rem; color: var(--fg-dim); letter-spacing: 1px; }
+
+    #modal {
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(0,0,0,0.98); display: none; flex-direction: column;
+    }
+    #modal.active { display: flex; }
+    .modal-bar {
+      height: 48px; background: #0a0a0a; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; flex-shrink: 0;
+    }
+    .modal-title-bar {
+      font-size: 0.58rem; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--fg-dim); display: flex; align-items: center; gap: 10px;
+    }
+    .modal-title-bar::before { content: '//'; color: var(--accent); }
+    #modal iframe { flex: 1; border: none; width: 100%; }
+    .modal-close-btn {
+      background: transparent; border: 1px solid var(--border-strong);
+      color: var(--fg-dim); width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; cursor: none; transition: all 0.2s;
+    }
+    .modal-close-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .reveal {
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    }
+    .reveal.visible { opacity: 1; transform: none; }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+
+    @media (max-width: 900px) {
+      nav { padding: 0 24px; }
+      .hero, section { padding: 100px 24px 60px; }
+      section { padding: 80px 24px; }
+      .project-card.featured { grid-column: 1; grid-template-columns: 1fr; gap: 32px; }
+      .projects-grid, .skills-grid { grid-template-columns: 1fr; }
+      .about-grid { grid-template-columns: 1fr; gap: 40px; }
+      footer { flex-direction: column; gap: 8px; text-align: center; padding: 24px; }
+    }
+    @media (max-width: 640px) {
+      #cursor, #cursor-ring { display: none; }
+      body { cursor: auto; }
+      .btn, .modal-close-btn { cursor: pointer; }
+      .hero h1 { font-size: clamp(3.5rem, 14vw, 6rem); }
+      .project-card, .project-card.featured { padding: 28px 20px; }
+      .nav-link-hide { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="cursor"></div>
+  <div id="cursor-ring"></div>
+  <div id="progress"></div>
+
+  <nav id="nav">
+    <a href="#" class="nav-logo">PONCELET<span class="dot">.</span></a>
+    <div class="nav-links">
+      <a href="#competences" class="nav-link-hide">Compétences</a>
+      <a href="#projets" class="nav-link-hide">Projets</a>
+      <a href="#apropos">À propos</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </nav>
+
+  <section class="hero" id="home">
+    <div class="hero-inner">
+      <div class="hero-prefix">BTS SIO — Système &amp; Réseau / Cybersécurité</div>
+      <h1>
+        TYMÉO<br>
+        <span class="outline">PONC</span><br>
+        <span class="accent-word">ELET</span>
+      </h1>
+      <p class="hero-sub">
+        <span class="comment">// Étudiant — Pôle Sup DE LA SALLE, Rennes</span><br>
+        Passionné par les infrastructures réseau et la cybersécurité.
+        Je configure, sécurise et analyse — de l'adressage IP à l'analyse de paquets.
+        Créatif en dehors du terminal, aussi.
+      </p>
+      <div class="hero-cta">
+        <a href="#contact" class="btn btn-primary">Recherche un stage</a>
+        <a href="#competences" class="btn btn-outline">Mes compétences</a>
+      </div>
+    </div>
+    <div class="hero-status">
+      <span class="status-dot"></span>
+      Disponible — Stage Sys / Réseau / Cybersécurité
+    </div>
+  </section>
+
+  <section id="competences">
+    <div class="section-inner">
+      <div class="section-tag reveal">Compétences</div>
+      <h2 class="section-title reveal reveal-delay-1">STACK<br><em>TECHNIQUE</em></h2>
+      <div class="skills-grid reveal reveal-delay-2">
+        <div class="skill-block">
+          <div class="skill-block-title">Système &amp; Réseau</div>
+          <ul class="skill-list">
+            <li><strong>Cisco Packet Tracer</strong> — simulation réseau</li>
+            <li><strong>Active Directory</strong> — gestion des droits</li>
+            <li><strong>Linux</strong> — Debian, Ubuntu, SGF</li>
+            <li><strong>Oracle VirtualBox</strong> — virtualisation</li>
+            <li><strong>GLPI / Zabbix</strong> — inventaire &amp; supervision</li>
+            <li><strong>Adressage IP / VLSM</strong> — sous-réseaux</li>
+            <li><strong>IP route</strong> — routage statique</li>
+          </ul>
+        </div>
+        <div class="skill-block">
+          <div class="skill-block-title">Cybersécurité</div>
+          <ul class="skill-list">
+            <li><strong>Kali Linux</strong> — environnement offensif</li>
+            <li><strong>Wireshark</strong> — analyse de paquets</li>
+            <li><strong>Hashcat / Hydra</strong> — brute force &amp; cracking</li>
+            <li><strong>Chiffrement &amp; hashage</strong> — principes crypto</li>
+            <li><strong>Attaque FTP</strong> — exploitation protocole</li>
+            <li><strong>Three-way handshake</strong> — analyse TCP</li>
+          </ul>
+        </div>
+        <div class="skill-block">
+          <div class="skill-block-title">Autres &amp; Soft skills</div>
+          <ul class="skill-list">
+            <li><strong>Anglais</strong> — lu, écrit, parlé</li>
+            <li><strong>Travail en équipe</strong> — coordination</li>
+            <li><strong>Rigueur</strong> — procédures, documentation</li>
+            <li><strong>HTML / CSS / JS</strong> — bases web</li>
+            <li><strong>Motion design</strong> — créativité visuelle</li>
+            <li><strong>Permis B</strong> — véhiculé</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="projets">
+    <div class="section-inner">
+      <div class="section-tag reveal">Projets</div>
+      <h2 class="section-title reveal reveal-delay-1">MES<br><em>RÉALISATIONS</em></h2>
+      <div class="projects-grid reveal reveal-delay-2">
+
+        <div class="project-card featured" onclick="openSnoxy()">
+          <div class="project-info">
+            <div class="project-num">001 — Projet créatif personnel</div>
+            <div class="project-type">✦ Site web one-page</div>
+            <h3 class="project-title">SNOXY<br>EDITS</h3>
+            <p class="project-desc">
+              Portfolio animé dédié à mes créations vidéo (anime edits).
+              Construit en HTML, CSS &amp; JavaScript vanilla avec GSAP ScrollTrigger :
+              hero cinématographique, galerie filtrée, lecteur vidéo plein écran et effets de scroll avancés.
+            </p>
+            <div class="project-tech">
+              <span class="tech-tag">HTML</span>
+              <span class="tech-tag">CSS</span>
+              <span class="tech-tag">JavaScript</span>
+              <span class="tech-tag">GSAP</span>
+              <span class="tech-tag">ScrollTrigger</span>
+              <span class="tech-tag">One-page</span>
+            </div>
+            <a href="#" class="project-link" onclick="event.preventDefault(); openSnoxy();">
+              Voir le site
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 12L12 2M12 2H5M12 2V9" stroke="currentColor" stroke-width="1.2"/>
+              </svg>
+            </a>
+          </div>
+          <div class="snoxy-preview">
+            <div class="snoxy-preview-bar"><span></span><span></span><span></span></div>
+            <div class="snoxy-preview-screen">
+              <div class="snoxy-preview-text">SNO<span class="dim">XY</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="project-card">
+          <div class="project-num">002 — À documenter</div>
+          <div class="project-type">Infra réseau</div>
+          <div class="project-placeholder">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect x="1" y="1" width="26" height="26" rx="1" stroke="currentColor" stroke-width="1" stroke-dasharray="4 2"/>
+              <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1"/>
+            </svg>
+            À venir
+          </div>
+          <h3 class="project-title">MAQUETTE<br>RÉSEAU</h3>
+          <p class="project-desc">Ajoute ici un TP ou projet école : maquette Cisco, Active Directory, VLAN, supervision…</p>
+          <div class="project-tech">
+            <span class="tech-tag">Cisco</span>
+            <span class="tech-tag">Active Directory</span>
+            <span class="tech-tag">VLAN</span>
+          </div>
+        </div>
+
+        <div class="project-card">
+          <div class="project-num">003 — À documenter</div>
+          <div class="project-type">Cybersécurité</div>
+          <div class="project-placeholder">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect x="1" y="1" width="26" height="26" rx="1" stroke="currentColor" stroke-width="1" stroke-dasharray="4 2"/>
+              <path d="M14 8V20M8 14H20" stroke="currentColor" stroke-width="1"/>
+            </svg>
+            À venir
+          </div>
+          <h3 class="project-title">CTF /<br>PENTEST</h3>
+          <p class="project-desc">Ajoute ici un CTF, un audit ou un exercice Kali / Wireshark réalisé en cours ou en autonomie.</p>
+          <div class="project-tech">
+            <span class="tech-tag">Kali</span>
+            <span class="tech-tag">Wireshark</span>
+            <span class="tech-tag">Hashcat</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section id="apropos">
+    <div class="section-inner">
+      <div class="about-grid">
+        <div class="about-left reveal">
+          <div class="section-tag" style="margin-bottom:24px;">À propos</div>
+          <h2>QUI<br><em>SUIS</em><br>JE ?</h2>
+          <div class="about-stat-row">
+            <div class="about-stat">
+              <div class="about-stat-val">BTS</div>
+              <div class="about-stat-lbl">SIO — option SR</div>
+            </div>
+            <div class="about-stat">
+              <div class="about-stat-val">2</div>
+              <div class="about-stat-lbl">Domaines techniques</div>
+            </div>
+            <div class="about-stat">
+              <div class="about-stat-val">10+</div>
+              <div class="about-stat-lbl">Outils maîtrisés</div>
+            </div>
+            <div class="about-stat">
+              <div class="about-stat-val">B</div>
+              <div class="about-stat-lbl">Permis — véhiculé</div>
+            </div>
+          </div>
+        </div>
+        <div class="about-right reveal reveal-delay-2">
+          <p>
+            Je m'appelle <strong>Poncelet Tyméo</strong>, étudiant en <strong>1ère année de BTS SIO</strong>
+            option Système &amp; Réseau / Cybersécurité au Pôle Sup DE LA SALLE à Rennes.
+            Bac Maths/Anglais mention assez bien au Lycée Jean Brito.
+          </p>
+          <p>
+            Mon terrain de jeu : configurer des <strong>infrastructures réseau</strong>, administrer
+            des serveurs Linux, gérer des accès Active Directory et analyser des flux réseau avec Wireshark.
+            La cybersécurité m'attire particulièrement — comprendre les attaques pour mieux défendre.
+          </p>
+          <p>
+            En dehors du terminal, je crée des <strong>edits animé</strong> sous le pseudo SNOXY —
+            une passion qui m'a appris le sens du rythme, de la composition et l'attention aux détails.
+          </p>
+          <div class="info-row">
+            <div class="info-item">
+              <span class="info-label">Formation</span>
+              <span class="info-val">BTS SIO — Pôle Sup DE LA SALLE</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Localisation</span>
+              <span class="info-val">La Bosse de Bretagne (35) — Véhiculé</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Recherche</span>
+              <span class="info-val">Stage Système / Réseau / Cybersécurité</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Centres d'int.</span>
+              <span class="info-val">Jeux vidéo · Anime/Manga · Automobile · Musique</span>
+            </div>
+          </div>
+          <div class="code-block">
+            <span class="code-cm">// Mon profil</span><br>
+            <span class="code-kw">const</span> <span class="code-fn">tymeo</span> = {<br>
+            &nbsp;&nbsp;formation: <span class="code-str">"BTS SIO — SR / Cybersécurité"</span>,<br>
+            &nbsp;&nbsp;stack: [<span class="code-str">"Cisco"</span>, <span class="code-str">"Linux"</span>, <span class="code-str">"Kali"</span>, <span class="code-str">"AD"</span>],<br>
+            &nbsp;&nbsp;objectif: <span class="code-str">"stage sys/réseau/sécu"</span>,<br>
+            &nbsp;&nbsp;dispo: <span class="code-fn">true</span><br>
+            };
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="section-inner contact-inner reveal">
+      <div class="section-tag">Contact</div>
+      <h2>PARLONS<br><em>RÉSEAU</em></h2>
+      <p>
+        À la recherche d'un stage en Système, Réseau ou Cybersécurité.
+        N'hésite pas à me contacter directement.
+      </p>
+      <div class="contact-links">
+        <a href="mailto:tymeo.poncelet@gmail.com" class="btn btn-primary">tymeo.poncelet@gmail.com</a>
+        <a href="tel:0610253234" class="btn btn-outline">06 10 25 32 34</a>
+        <a href="https://www.linkedin.com/in/tyméo-poncelet-83b667383" target="_blank" class="btn btn-outline">LinkedIn</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-logo">PONCELET TYMÉO<span class="dot">.</span></div>
+    <div class="footer-copy">BTS SIO — Système &amp; Réseau / Cybersécurité · 2025–2026</div>
+  </footer>
+
+  <div id="modal">
+    <div class="modal-bar">
+      <div class="modal-title-bar">SNOXY — Anime Edit Portfolio</div>
+      <button class="modal-close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <iframe id="modal-iframe" src="" title="SNOXY Anime Edit Portfolio"></iframe>
+  </div>
+
+  <script>
+    const cur = document.getElementById('cursor');
+    const ring = document.getElementById('cursor-ring');
+    document.addEventListener('mousemove', e => {
+      cur.style.left = e.clientX + 'px'; cur.style.top = e.clientY + 'px';
+      ring.style.left = e.clientX + 'px'; ring.style.top = e.clientY + 'px';
+    });
+    document.querySelectorAll('a, button, [onclick]').forEach(el => {
+      el.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
+      el.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
+    });
+
+    const nav = document.getElementById('nav');
+    const bar = document.getElementById('progress');
+    window.addEventListener('scroll', () => {
+      const p = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+      bar.style.width = (p * 100) + '%';
+      nav.classList.toggle('scrolled', window.scrollY > 40);
+    });
+
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+    function openSnoxy() {
+      document.getElementById('modal-iframe').src = 'https://snoxyae.github.io/snoxy-edits/';
+      document.getElementById('modal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+      document.getElementById('modal-iframe').src = '';
+      document.body.style.overflow = '';
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  </script>
+</body>
+</html>
